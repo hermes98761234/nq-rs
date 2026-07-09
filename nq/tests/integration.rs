@@ -11,7 +11,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -331,6 +331,13 @@ fn test_done_dir_success() {
     assert!(output.status.success(), "enqueue should succeed");
 
     wait_all(&dir);
+
+    // On macOS, the daemon's move_to_done may not be visible to stat()
+    // immediately after the flock is released. Retry briefly.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while count_jobs(&done_dir) == 0 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
 
     // Job file should have been moved to done_dir.
     assert_eq!(
