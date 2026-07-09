@@ -8,6 +8,9 @@ license = "CC0-1.0"
 fs2 = "0.4"
 thiserror = "2"
 
+[dev-dependencies]
+tempfile = "3"
+
 [lib]
 name = "nq_core"
 path = "src/lib.rs"
