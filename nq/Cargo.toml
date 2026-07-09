@@ -1,0 +1,10 @@
+[package]
+name = "nq"
+version = "0.1.0"
+edition = "2021"
+license = "CC0-1.0"
+
+[dependencies]
+nq-core = { path = "../nq-core" }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"

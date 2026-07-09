@@ -1,0 +1,13 @@
+[package]
+name = "nq-core"
+version = "0.1.0"
+edition = "2021"
+license = "CC0-1.0"
+
+[dependencies]
+fs2 = "0.4"
+thiserror = "2"
+
+[lib]
+name = "nq_core"
+path = "src/lib.rs"
