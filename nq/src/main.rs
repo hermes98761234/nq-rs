@@ -101,7 +101,7 @@ fn clear_executable(_path: &std::path::Path) -> Result<()> {
 
 /// Return this binary's own path for spawning the daemon worker.
 fn self_exe() -> Result<PathBuf> {
-    Ok(std::env::current_exe().context("cannot get self exe path")?)
+    std::env::current_exe().context("cannot get self exe path")
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +200,7 @@ fn cmd_test(qd: &QueueDir, ids: &[JobId]) -> Result<bool> {
 
 /// The daemon worker process, spawned by `cmd_queue`. It executes the queued
 /// command once all older jobs have completed.
+#[cfg(unix)]
 fn run_daemon(qd: &QueueDir, lock_path: &str) -> Result<()> {
     let lock_path = std::path::Path::new(lock_path);
     let mut file = std::fs::OpenOptions::new()
@@ -213,13 +214,8 @@ fn run_daemon(qd: &QueueDir, lock_path: &str) -> Result<()> {
 
     // Wait for all older (sorted earlier) jobs to complete.
     let all_jobs = qd.list_jobs()?;
-    let our_id = JobId::from_filename(
-        lock_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(""),
-    )
-    .context("daemon: cannot parse own job id from filename")?;
+    let our_id = JobId::from_filename(lock_path.file_name().and_then(|n| n.to_str()).unwrap_or(""))
+        .context("daemon: cannot parse own job id from filename")?;
 
     for id in &all_jobs {
         if id >= &our_id {
@@ -260,10 +256,7 @@ fn run_daemon(qd: &QueueDir, lock_path: &str) -> Result<()> {
 
     // The exec line is a shell command — run it via sh -c.
     // Strip the leading "exec " prefix added by write_exec_line.
-    let cmd = exec_line
-        .strip_prefix("exec ")
-        .unwrap_or(&exec_line)
-        .trim();
+    let cmd = exec_line.strip_prefix("exec ").unwrap_or(&exec_line).trim();
 
     // Fork: parent waits, child execs.
     let child_id = unsafe { libc::fork() };
@@ -273,14 +266,7 @@ fn run_daemon(qd: &QueueDir, lock_path: &str) -> Result<()> {
         0 => {
             // Child: exec the command via shell.
             // Re-open /dev/null for stdin since we don't have input.
-            let devnull = std::fs::File::open("/dev/null").unwrap_or_else(|_| {
-                // If /dev/null fails, create a dummy file.
-                std::fs::OpenOptions::new()
-                    .read(true)
-                    .create(true)
-                    .open("/dev/null")
-                    .unwrap()
-            });
+            let devnull = std::fs::File::open("/dev/null").expect("/dev/null must exist on Unix");
             unsafe {
                 libc::dup2(devnull.as_raw_fd(), 0);
             }
@@ -290,13 +276,20 @@ fn run_daemon(qd: &QueueDir, lock_path: &str) -> Result<()> {
             let c_cmd = std::ffi::CString::new(cmd).unwrap_or_default();
             let sh = std::ffi::CString::new("sh").unwrap();
             let sh_c = std::ffi::CString::new("-c").unwrap();
-            let argv: [*const libc::c_char; 4] = [sh.as_ptr(), sh_c.as_ptr(), c_cmd.as_ptr(), std::ptr::null()];
+            let argv: [*const libc::c_char; 4] =
+                [sh.as_ptr(), sh_c.as_ptr(), c_cmd.as_ptr(), std::ptr::null()];
             unsafe {
                 libc::execvp(sh.as_ptr(), argv.as_ptr());
             }
             // If we get here, exec failed.
-            let _ = writeln!(std::io::stderr(), "daemon: exec failed: {}", std::io::Error::last_os_error());
-            unsafe { libc::_exit(127); }
+            let _ = writeln!(
+                std::io::stderr(),
+                "daemon: exec failed: {}",
+                std::io::Error::last_os_error()
+            );
+            unsafe {
+                libc::_exit(127);
+            }
         }
         _ => {
             // Parent: wait for child.
@@ -366,11 +359,16 @@ fn main() -> ExitCode {
 
 fn run() -> Result<ExitCode> {
     // Check for daemon mode first — this env var indicates the daemon worker.
+    #[cfg(unix)]
     if let Ok(lock_path) = std::env::var("NQ_INTERNAL_DAEMON_LOCK") {
         let qd = QueueDir::open()?;
         run_daemon(&qd, &lock_path)?;
         // run_daemon calls process::exit internally, so we should never get here.
         return Ok(ExitCode::SUCCESS);
+    }
+    #[cfg(windows)]
+    if std::env::var("NQ_INTERNAL_DAEMON_LOCK").is_ok() {
+        bail!("daemon mode not supported on Windows");
     }
 
     let cli = Cli::parse();

@@ -130,7 +130,7 @@ mod notify {
     use std::os::fd::{AsRawFd, RawFd};
     use std::path::Path;
 
-    use libc::{EVFILT_VNODE, EV_ADD, EV_CLEAR, NOTE_WRITE, NOTE_EXTEND};
+    use libc::{EVFILT_VNODE, EV_ADD, EV_CLEAR, NOTE_EXTEND, NOTE_WRITE};
 
     pub struct FileWatcher {
         kq: RawFd,
@@ -299,7 +299,7 @@ fn follow_job(qd: &QueueDir, id: &JobId, no_wait: bool) -> Result<()> {
         let mut buf = [0u8; 8192];
         loop {
             match file.read(&mut buf) {
-                Ok(0) => break,      // no more data right now
+                Ok(0) => break, // no more data right now
                 Ok(n) => {
                     io::stdout().write_all(&buf[..n])?;
                     io::stdout().flush()?;
@@ -355,7 +355,7 @@ fn run() -> Result<ExitCode> {
 
     // Follow each job in order.
     for id in &ids {
-        follow_job(&qd, &id, cli.no_wait)?;
+        follow_job(&qd, id, cli.no_wait)?;
     }
 
     Ok(ExitCode::SUCCESS)

@@ -68,7 +68,10 @@ fn count_jobs(dir: &PathBuf) -> usize {
 fn test_fails_no_args() {
     let dir = test_dir("fails_no_args");
     let output = run_nq(&dir, &[]);
-    assert!(output.status.success(), "nq with no args should succeed (list mode)");
+    assert!(
+        output.status.success(),
+        "nq with no args should succeed (list mode)"
+    );
     assert!(
         String::from_utf8_lossy(&output.stdout).trim().is_empty(),
         "empty queue listing should have no stdout"
@@ -112,8 +115,14 @@ fn test_enqueue_true() {
         fs::read_to_string(&files[0]).unwrap()
     });
 
-    assert!(content.contains("exec true"), "job file should contain exec line");
-    assert!(content.contains("+ exit=0"), "job file should contain exit status for success");
+    assert!(
+        content.contains("exec true"),
+        "job file should contain exec line"
+    );
+    assert!(
+        content.contains("+ exit=0"),
+        "job file should contain exit status for success"
+    );
 }
 
 /// Enqueue a slow job followed by a fast job, verify both complete (the fast
@@ -124,16 +133,26 @@ fn test_queue_order() {
 
     // Enqueue a slow job.
     let out1 = run_nq(&dir, &["sleep", "1"]);
-    assert!(out1.status.success(), "first enqueue (sleep 1) should succeed");
+    assert!(
+        out1.status.success(),
+        "first enqueue (sleep 1) should succeed"
+    );
 
     // Enqueue a fast job while the first is still queued.
     let out2 = run_nq(&dir, &["true"]);
-    assert!(out2.status.success(), "second enqueue (true) should succeed");
+    assert!(
+        out2.status.success(),
+        "second enqueue (true) should succeed"
+    );
 
     // Wait for both to complete.
     wait_all(&dir);
 
-    assert_eq!(count_jobs(&dir), 2, "both job files should exist after completion");
+    assert_eq!(
+        count_jobs(&dir),
+        2,
+        "both job files should exist after completion"
+    );
 
     for entry in fs::read_dir(&dir).unwrap() {
         let entry = entry.unwrap();
@@ -225,7 +244,10 @@ fn test_env_passthrough() {
 
     wait_all(&dir);
 
-    assert!(out_file.exists(), "output file should be created by the job");
+    assert!(
+        out_file.exists(),
+        "output file should be created by the job"
+    );
 
     let content = fs::read_to_string(&out_file).unwrap();
     let dir_str = dir.to_string_lossy().to_string();
@@ -331,7 +353,10 @@ fn test_done_dir_success() {
             .path(),
     )
     .unwrap();
-    assert!(content.contains("+ exit=0"), "exit status should be success");
+    assert!(
+        content.contains("+ exit=0"),
+        "exit status should be success"
+    );
 }
 
 /// List mode: after queueing and completing jobs, listing shows them all.
@@ -350,6 +375,9 @@ fn test_list_mode() {
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 2, "should list both job IDs");
     for line in &lines {
-        assert!(line.starts_with(','), "each line should be a job ID: {line}");
+        assert!(
+            line.starts_with(','),
+            "each line should be a job ID: {line}"
+        );
     }
 }

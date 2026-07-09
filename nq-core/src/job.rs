@@ -149,26 +149,47 @@ mod tests {
 
     #[test]
     fn test_ordering() {
-        let a = JobId { timestamp_ms: 100, pid: 1 };
-        let b = JobId { timestamp_ms: 100, pid: 2 };
-        let c = JobId { timestamp_ms: 200, pid: 1 };
+        let a = JobId {
+            timestamp_ms: 100,
+            pid: 1,
+        };
+        let b = JobId {
+            timestamp_ms: 100,
+            pid: 2,
+        };
+        let c = JobId {
+            timestamp_ms: 200,
+            pid: 1,
+        };
 
-        assert!(a < b);   // same ts, different pid
-        assert!(b < c);   // different ts
+        assert!(a < b); // same ts, different pid
+        assert!(b < c); // different ts
         assert!(a < c);
         // Same ts + same pid → equal
-        assert_eq!(a, JobId { timestamp_ms: 100, pid: 1 });
+        assert_eq!(
+            a,
+            JobId {
+                timestamp_ms: 100,
+                pid: 1
+            }
+        );
     }
 
     #[test]
     fn test_zero_padded() {
-        let id = JobId { timestamp_ms: 0xabc, pid: 42 };
+        let id = JobId {
+            timestamp_ms: 0xabc,
+            pid: 42,
+        };
         assert_eq!(id.filename(), ",00000000abc.42");
     }
 
     #[test]
     fn test_display() {
-        let id = JobId { timestamp_ms: 0x14f6f3034f8, pid: 17035 };
+        let id = JobId {
+            timestamp_ms: 0x14f6f3034f8,
+            pid: 17035,
+        };
         assert_eq!(format!("{id}"), ",14f6f3034f8.17035");
     }
 }

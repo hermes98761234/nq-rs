@@ -94,7 +94,10 @@ mod tests {
     fn test_arg_with_single_quote() {
         let mut buf = Vec::new();
         write_exec_line(&mut buf, &["echo", "it's fine"]).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), "exec echo 'it'\\''s fine'\n");
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            "exec echo 'it'\\''s fine'\n"
+        );
     }
 
     #[test]
@@ -128,10 +131,7 @@ mod tests {
     fn test_backslash_and_backtick() {
         let mut buf = Vec::new();
         write_exec_line(&mut buf, &["echo", "a\\b", "c`d"]).unwrap();
-        assert_eq!(
-            String::from_utf8(buf).unwrap(),
-            "exec echo 'a\\b' 'c`d'\n"
-        );
+        assert_eq!(String::from_utf8(buf).unwrap(), "exec echo 'a\\b' 'c`d'\n");
     }
 
     #[test]
@@ -161,19 +161,13 @@ mod tests {
     fn test_dollar_brace_in_arg() {
         let mut buf = Vec::new();
         write_exec_line(&mut buf, &["echo", "${HOME}"]).unwrap();
-        assert_eq!(
-            String::from_utf8(buf).unwrap(),
-            "exec echo '${HOME}'\n"
-        );
+        assert_eq!(String::from_utf8(buf).unwrap(), "exec echo '${HOME}'\n");
     }
 
     #[test]
     fn test_semicolon_in_arg() {
         let mut buf = Vec::new();
         write_exec_line(&mut buf, &["echo", "a;b"]).unwrap();
-        assert_eq!(
-            String::from_utf8(buf).unwrap(),
-            "exec echo 'a;b'\n"
-        );
+        assert_eq!(String::from_utf8(buf).unwrap(), "exec echo 'a;b'\n");
     }
 }

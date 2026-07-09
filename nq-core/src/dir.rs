@@ -4,7 +4,9 @@
 //! environment variables, matching the original nq semantics.
 
 use std::fs::{self, File, OpenOptions};
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
+#[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 
@@ -49,21 +51,22 @@ impl QueueDir {
         fs::create_dir_all(&path)?;
         let dir_file = File::open(&path)?;
 
-        let done_path = std::env::var("NQDONEDIR")
-            .map(PathBuf::from)
-            .ok();
+        let done_path = std::env::var("NQDONEDIR").map(PathBuf::from).ok();
         if let Some(ref p) = done_path {
             fs::create_dir_all(p)?;
         }
 
-        let fail_path = std::env::var("NQFAILDIR")
-            .map(PathBuf::from)
-            .ok();
+        let fail_path = std::env::var("NQFAILDIR").map(PathBuf::from).ok();
         if let Some(ref p) = fail_path {
             fs::create_dir_all(p)?;
         }
 
-        Ok(Self { path, dir_file, done_path, fail_path })
+        Ok(Self {
+            path,
+            dir_file,
+            done_path,
+            fail_path,
+        })
     }
 
     /// Open a `QueueDir` at a specific path (for testing without env vars).
@@ -71,12 +74,24 @@ impl QueueDir {
         let path = path.as_ref().to_path_buf();
         fs::create_dir_all(&path)?;
         let dir_file = File::open(&path)?;
-        Ok(Self { path, dir_file, done_path: None, fail_path: None })
+        Ok(Self {
+            path,
+            dir_file,
+            done_path: None,
+            fail_path: None,
+        })
     }
 
     /// Return the raw file descriptor of the queue directory.
+    #[cfg(unix)]
     pub fn dirfd(&self) -> RawFd {
         self.dir_file.as_raw_fd()
+    }
+
+    /// Return the raw handle of the queue directory (Windows).
+    #[cfg(windows)]
+    pub fn dirfd(&self) -> u64 {
+        0 // placeholder — not used on Windows
     }
 
     /// Create a new job file.
@@ -94,13 +109,11 @@ impl QueueDir {
             return Err(Error::Exists(final_path.display().to_string()));
         }
 
-        // Create the temp file exclusively.
-        let file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .read(true)
-            .mode(0o666)
-            .open(&temp_path)?;
+        let mut opts = OpenOptions::new();
+        opts.create_new(true).write(true).read(true);
+        #[cfg(unix)]
+        opts.mode(0o666);
+        let file = opts.open(&temp_path)?;
 
         // Acquire exclusive lock before renaming.
         file.lock_exclusive()?;
@@ -135,10 +148,7 @@ impl QueueDir {
     /// Open an existing job file for reading and writing (append mode).
     pub fn open_job(&self, id: &JobId) -> Result<File, Error> {
         let path = self.path.join(id.filename());
-        let file = OpenOptions::new()
-            .read(true)
-            .append(true)
-            .open(&path)?;
+        let file = OpenOptions::new().read(true).append(true).open(&path)?;
         Ok(file)
     }
 
@@ -190,7 +200,7 @@ mod tests {
         let id = JobId::new();
 
         let mut file = qd.create_job(&id).unwrap();
-        write!(file, "exec test\n").unwrap();
+        writeln!(file, "exec test").unwrap();
         // Unlock so the write is visible.
         job::unlock(&file);
 
@@ -204,21 +214,30 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let qd = QueueDir::open_at(dir.path()).unwrap();
 
-        let id_a = JobId { timestamp_ms: 100, pid: 1 };
-        let id_b = JobId { timestamp_ms: 200, pid: 2 };
-        let id_c = JobId { timestamp_ms: 150, pid: 3 };
+        let id_a = JobId {
+            timestamp_ms: 100,
+            pid: 1,
+        };
+        let id_b = JobId {
+            timestamp_ms: 200,
+            pid: 2,
+        };
+        let id_c = JobId {
+            timestamp_ms: 150,
+            pid: 3,
+        };
 
         // Create in non-sorted order.
         let mut f = qd.create_job(&id_b).unwrap();
-        write!(f, "exec b\n").unwrap();
+        writeln!(f, "exec b").unwrap();
         job::unlock(&f);
 
         let mut f = qd.create_job(&id_a).unwrap();
-        write!(f, "exec a\n").unwrap();
+        writeln!(f, "exec a").unwrap();
         job::unlock(&f);
 
         let mut f = qd.create_job(&id_c).unwrap();
-        write!(f, "exec c\n").unwrap();
+        writeln!(f, "exec c").unwrap();
         job::unlock(&f);
 
         let jobs = qd.list_jobs().unwrap();
@@ -235,7 +254,7 @@ mod tests {
         let id = JobId::new();
 
         let mut file = qd.create_job(&id).unwrap();
-        write!(file, "exec hello\n").unwrap();
+        writeln!(file, "exec hello").unwrap();
         job::unlock(&file);
 
         // Re-open and read.
@@ -251,7 +270,7 @@ mod tests {
         let id = JobId::new();
 
         let mut f = qd.create_job(&id).unwrap();
-        write!(f, "exec test\n").unwrap();
+        writeln!(f, "exec test").unwrap();
         job::unlock(&f);
 
         assert!(qd.list_jobs().unwrap().len() == 1);
@@ -275,7 +294,7 @@ mod tests {
 
         let id = JobId::new();
         let mut f = qd.create_job(&id).unwrap();
-        write!(f, "exec test\n").unwrap();
+        writeln!(f, "exec test").unwrap();
         job::unlock(&f);
 
         qd.move_to_done(&id).unwrap();
@@ -298,7 +317,7 @@ mod tests {
 
         let id = JobId::new();
         let mut f = qd.create_job(&id).unwrap();
-        write!(f, "exec test\n").unwrap();
+        writeln!(f, "exec test").unwrap();
         job::unlock(&f);
 
         qd.move_to_fail(&id).unwrap();
