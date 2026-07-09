@@ -1,3 +1,4 @@
+#![cfg(unix)]
 //! Integration tests for the `nq` binary.
 //!
 //! Each test creates a fresh temp dir under `$TMPDIR/nqtest/<test_name>`,

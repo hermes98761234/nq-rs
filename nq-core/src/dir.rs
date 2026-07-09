@@ -326,6 +326,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_dirfd_raw() {
         let dir = tempfile::tempdir().unwrap();
         let qd = QueueDir::open_at(dir.path()).unwrap();

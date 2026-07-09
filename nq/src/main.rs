@@ -9,7 +9,9 @@
 //!
 //! The `-c` flag (compact) prints only the job count instead of full IDs.
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
+#[cfg(unix)]
+use std::io::{BufRead, BufReader};
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 #[cfg(unix)]
