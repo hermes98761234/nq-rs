@@ -157,7 +157,10 @@ fn cmd_wait(qd: &QueueDir, ids: &[JobId]) -> Result<()> {
     };
 
     for id in &targets {
-        let file = qd.open_job(id).with_context(|| format!("open {id}"))?;
+        let file = match qd.open_job(id) {
+            Ok(f) => f,
+            Err(_) => continue, // already moved/removed by daemon
+        };
         if job::is_running(&file) {
             job::wait_for_lock(&file);
         }
